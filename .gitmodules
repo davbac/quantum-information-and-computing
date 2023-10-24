@@ -1,0 +1,3 @@
+[submodule "quantum_information_computing_2324"]
+	path = quantum_information_computing_2324
+	url = https://baltig.infn.it/qpd/quantum_information_computing_2324.git
