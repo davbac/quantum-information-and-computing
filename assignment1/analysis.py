@@ -42,13 +42,31 @@ sds=np.std(data, axis=1)
 sds1=np.std(data1, axis=1)
 sds2=np.std(data2, axis=1)
 
-plt.plot(x, means)
-plt.plot(x, means1)
-plt.plot(x, means2)
+plt.plot(x, means, label="t")
+plt.plot(x, means1, label="t1")
+plt.plot(x, means2, label="t2")
 
 plt.fill_between(x, means-sds, means+sds)
 plt.fill_between(x, means1-sds1, means1+sds1)
 plt.fill_between(x, means2-sds2, means2+sds2)
 
+coeffs = np.polyfit(np.log(x), np.log(means), 1)
+y=np.exp(coeffs[0]*np.log(x)+coeffs[1])
+plt.plot(x,y,color="red")
+print(coeffs[0])
 
+coeffs = np.polyfit(np.log(x), np.log(means1), 1)
+y=np.exp(coeffs[0]*np.log(x)+coeffs[1])
+plt.plot(x,y,color="cyan")
+print(coeffs[0])
+
+coeffs = np.polyfit(np.log(x), np.log(means2), 1)
+y=np.exp(coeffs[0]*np.log(x)+coeffs[1])
+plt.plot(x,y,color="pink")
+print(coeffs[0])
+
+plt.yscale("log")
+plt.xscale("log")
+
+plt.legend()
 plt.show()

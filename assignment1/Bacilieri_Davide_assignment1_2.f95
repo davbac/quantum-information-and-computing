@@ -23,7 +23,7 @@ program main
     f=sqrt(2.)*1e21
     print *, e+f
     
-    print *, "real*2 case"
+    print *, "real*8 case"
     g=4*atan(1.)*1e32
     h=sqrt(2.)*1e21
     print *, g+h

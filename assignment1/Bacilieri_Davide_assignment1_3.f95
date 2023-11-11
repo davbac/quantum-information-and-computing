@@ -10,13 +10,14 @@ program main
     
     do i=mindim, maxdim
         do j=1,runs
+!             get time in seconds
             call get_times(i, ts(j, i-mindim+1), t1s(j, i-mindim+1), t2s(j, i-mindim+1))
         end do
     end do
     
-    open(10, file="t.csv", status="new")
-    open(11, file="t1.csv", status="new")
-    open(12, file="t2.csv", status="new")
+    open(10, file="t_6.csv", status="new")
+    open(11, file="t1_6.csv", status="new")
+    open(12, file="t2_6.csv", status="new")
     
     write (10,*) ts
     write (11,*) t1s
