@@ -26,8 +26,13 @@ if __name__=="__main__":
     except:
         raise Exception("The script expects two command line arguments giving the number of subsystems and the strength of the field (N, lambda)")
     
-    if N>11: #execution time goes over the minute timescale at 12
+    if N>14:
         raise Exception("Not enough memory available for the computation; you'd need {:e} bytes just to store the matrix using float32".format(4*2**(2*N)))
+    
+    if N>11: #execution time goes over the minute timescale at 12
+        s = input("Are you sure? This may take a long time to execute; if in doubt try with a lower N. (y/n)")
+        if s.lower()[0] == n:
+            exit()
     
     vals, vecs = np.linalg.eigh(ising_hamiltonian(N, l))
     print(vals, vecs)
