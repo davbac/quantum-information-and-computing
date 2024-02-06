@@ -1,0 +1,7 @@
+--- Reference papers ---
+"Decomposition of Matrix Product states in shallow quantum circuits" ~Rudolph
+"Encoding of MPS in quantum circuits of One- and two- qubit gates" ~Ran
+
+--- Software needed ---
+qtealeaves > 1.1
+qmatchatea ?
