@@ -20,7 +20,7 @@ HY = QteaT.from_elem_array(np.array([[1,1j],[1,-1j]])/(2**0.5))
 N = 8 # number of sites
 d = 2 # local dimension
 chi = 2 # bond dimension
-control = "A" # switch between GHZ and random 
+control = "R" # switch between initializations
 
 if control=="R":
     # random
@@ -41,12 +41,10 @@ elif control=="A":
         my_mps.apply_two_site_operator(NCNOT,n)    
 
 
-my_mps.normalize()
-#print_mps(my_mps)
-
 my_mps.iso_towards(0) 
 #my_mps.iso_towards(N-1)
-print_mps(my_mps)
+my_mps.normalize()
+#print_mps(my_mps)
 
 my_mpd = []
 
@@ -97,15 +95,28 @@ control_mps.normalize()
 # initialized to zero on all sites
 
 # apply the MPD a gate at a time, see notes for how the circuit is built
-
-my_mps.apply_one_site_operator(my_mpd[N-1].transpose((1,0)),N-1)
+"""
+my_mps.apply_one_site_operator(my_mpd[N-1],N-1)
 for n in reversed(range(N-1)):
     my_mps.apply_two_site_operator(my_mpd[n],n,swap=True)
 
 my_mps.normalize()
+print_mps(my_mps)
+"""
+
+for n in range(N-1):
+    control_mps.apply_two_site_operator(my_mpd[n].transpose((2,3,1,0)).conj(),n)
+
+control_mps.apply_one_site_operator(my_mpd[N-1].transpose((1,0)).conj(),N-1)
+
+control_mps.normalize()
+
+control_mps.iso_towards(0)
+#print_mps(control_mps)
+
 
 #print_mpd(my_mpd)
-print_mps(my_mps)
+
 
 # print fidelity
 print(np.abs(control_mps.contract(my_mps))) 
