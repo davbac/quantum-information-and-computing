@@ -47,7 +47,7 @@ def mpd_from_mps(mps):
                     M.normalize()
             G.elem[i,j,:,:] = M.elem
     
-    my_mpd.append(G)
+    my_mpd.append(G.transpose((1,0,2,3)))
     
     # same for G[1:N-2]
     for n in range(1,N-1):
@@ -63,7 +63,7 @@ def mpd_from_mps(mps):
                         M.normalize()
                 G.elem[i,j,:,:] = M.elem
         
-        my_mpd.append(G)
+        my_mpd.append(G.transpose((1,0,2,3)))
     
     # now for G[N-1] 
     ##remove extra leg with dimension 1 to avoid errors in apply_one_site_operator
@@ -83,7 +83,7 @@ def rev_apply_mpd(mpd, mps=None, chi=2, d=2):
     for i in range(len(mpd)):
         mps.apply_one_site_operator(mpd[i][N-1],N-1)
         for n in reversed(range(N-1)):
-            mps.apply_two_site_operator(mpd[i][n].transpose((1,0,2,3)),n)
+            mps.apply_two_site_operator(mpd[i][n],n)
 
     mps.normalize()
     mps.iso_towards(0)
@@ -100,7 +100,7 @@ def apply_mpd(mpd, mps=None, chi=2, d=2):
     mps.normalize()
     for i in reversed(range(len(mpd))):
         for n in range(N-1):
-            mps.apply_two_site_operator(mpd[i][n].transpose((2,3,1,0)).conj(),n) 
+            mps.apply_two_site_operator(mpd[i][n].transpose((2,3,0,1)).conj(),n) 
     
         mps.apply_one_site_operator(mpd[i][N-1].transpose((1,0)).conj(),N-1)
     mps.normalize()
@@ -110,7 +110,7 @@ def apply_mpd(mpd, mps=None, chi=2, d=2):
     
 if __name__ == "__main__":
     d=2
-    chi=3
+    chi=2
     N=8
     my_mps = MPS(N, TNConvPar(max_bond_dimension=chi), initialize="random", local_dim=d)
     my_mps.normalize()
