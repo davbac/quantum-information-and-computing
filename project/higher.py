@@ -51,24 +51,28 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.005, tol=0.05, maxiter=1000):
                 mps_a_n = apply_mpd([mpd_a], mps_a)
                 mps_b_n = rev_apply_mpd([mpd_b], mps_b)
                 
-                if n==N-1:
+                if n==N-1: # two-leg tensor case
                     f = mps_a_n.contract(mps_b_n, (0,N-1)).remove_dummy_link(0)
                     dtens = mps_a_n[N-1].remove_dummy_link(2).tensordot(f, (0,0)).tensordot(mps_b_n[N-1].conj().remove_dummy_link(2), (1,0))
-                    #dtens.transpose((1,0))
                     
-                else: 
-                    if n<N-2: #move the legs we don't want to contract out of the contraction range
-                        mps_a_n.swap_qubits((n, N-2))
-                        mps_a_n.swap_qubits((n+1, N-1))
-                        mps_b_n.swap_qubits((n, N-2))
-                        mps_b_n.swap_qubits((n+1, N-1))
-                
+                elif n==N-2: # right edge case
                     f = mps_a_n.contract(mps_b_n, (0,N-2)).remove_dummy_link(0) 
-                    dtens = mps_a_n[N-2].tensordot(f, (0,0)).tensordot(mps_b_n[N-2].conj(), (2,0))
-                    dtens = mps_a_n[N-1].remove_dummy_link(2).tensordot(dtens, (0,1)).tensordot(mps_b_n[N-1].conj().remove_dummy_link(2), (3,0))
+                    twoq_a = mps_a_n[N-2].tensordot(mps_a_n[N-1].remove_dummy_link(2), (2,0))
+                    twoq_b = mps_b_n[N-2].tensordot(mps_b_n[N-1].remove_dummy_link(2), (2,0))
+                    dtens = twoq_a.tensordot(f.tensordot(twoq_b.conj(), (1,0)), (0,0))    
                     
-                    #dtens.transpose((2,3,0,1))
-                    
+                elif n==0: # left edge case
+                    f = mps_a_n.contract(mps_b_n, (N-1,1)).remove_dummy_link(2) 
+                    twoq_a = mps_a_n[0].remove_dummy_link(0).tensordot(mps_a_n[1], (1,0))
+                    twoq_b = mps_b_n[0].remove_dummy_link(0).tensordot(mps_b_n[1], (1,0))
+                    dtens = twoq_a.tensordot(f, (2,0)).tensordot(twoq_b.conj(), (2,2))
+                
+                else: # in between
+                    f1 = mps_a_n.contract(mps_b_n, (0,n)).remove_dummy_link(0) 
+                    f2 = mps_a_n.contract(mps_b_n, (N-1,n+1)).remove_dummy_link(2)
+                    twoq_a = mps_a_n[n].tensordot(mps_a_n[n+1], (2,0))
+                    twoq_b = mps_b_n[n].tensordot(mps_b_n[n+1], (2,0))
+                    dtens = twoq_a.tensordot(f2, (3,0)).tensordot(f1.tensordot(twoq_b.conj(), (1,0)), ([0,3],[0,3]))
                 
                 mpd[l][n].elem += dtens.elem*l_rate
     
