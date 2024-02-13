@@ -4,9 +4,23 @@ from qtealeaves.convergence_parameters.conv_params import TNConvergenceParameter
 import numpy as np
 from copy import deepcopy
 
+def print_mps(mps): #helper func, to check the values 
+    print([i.elem for i in mps.tensors])
+    print("\n")
+    
+def print_mpd(mpd):
+    print([[i.elem for i in j] for j in mpd])
+    print("\n")
+
+
 def mpd_from_mps(mps):
     my_mps = deepcopy(mps)
     N = my_mps.num_sites
+    if np.all(np.array(my_mps.local_dim) == my_mps.local_dim[0]):
+        d = my_mps.local_dim[0]
+    else:
+        raise Exception("Needs an MPS with the same local dimension on all sites. Tested only on d=2")
+    
     my_mps._convergence_parameters.sim_params["max_bond_dimension"]=2
     # we need the isometry at the first site
     ## move it all the way to make sure the mps is all reduced to bond dimension 2
@@ -86,9 +100,9 @@ def apply_mpd(mpd, mps=None, chi=2, d=2):
     mps.normalize()
     for i in reversed(range(len(mpd))):
         for n in range(N-1):
-            mps.apply_two_site_operator(my_mpd[i][n].transpose((2,3,1,0)).conj(),n) 
+            mps.apply_two_site_operator(mpd[i][n].transpose((2,3,1,0)).conj(),n) 
     
-        mps.apply_one_site_operator(my_mpd[i][N-1].transpose((1,0)).conj(),N-1)
+        mps.apply_one_site_operator(mpd[i][N-1].transpose((1,0)).conj(),N-1)
     mps.normalize()
     mps.iso_towards(0)
     return mps
@@ -99,6 +113,7 @@ if __name__ == "__main__":
     chi=3
     N=8
     my_mps = MPS(N, TNConvPar(max_bond_dimension=chi), initialize="random", local_dim=d)
+    my_mps.normalize()
     my_mpd = []
     my_mpd.append(mpd_from_mps(my_mps))
     
