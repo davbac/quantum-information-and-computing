@@ -1,7 +1,8 @@
-from qtealeaves.emulator.mps_simulator import MPS
-from qtealeaves.convergence_parameters.conv_params import TNConvergenceParameters as TNConvPar
+from qtealeaves.emulator import MPS
+from qtealeaves.convergence_parameters import TNConvergenceParameters as TNConvPar
 from basic import *
 from qtealeaves.tensors import QteaTensor as QteaT
+from cmath import phase, exp as cexp
 
 def full_analytic_mpd(mps, D):
     my_mpd = []
@@ -32,9 +33,12 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.005, tol=0.05, maxiter=1000):
     
     fid = []
     for count in range(maxiter):
-        fid.append(np.abs(mps.contract(apply_mpd(mpd, control_mps))))
+        contr = mps.contract(apply_mpd(mpd, control_mps))
+        fid.append(np.abs(contr))
         if fid[-1]>1-tol:
             break
+        
+        new_mpd = deepcopy(mpd)
         for l in layers:
             mps_a = apply_mpd(mpd[:l],control_mps)
             mps_b = rev_apply_mpd(mpd[l+1:], mps)
@@ -74,7 +78,10 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.005, tol=0.05, maxiter=1000):
                     twoq_b = mps_b_n[n].tensordot(mps_b_n[n+1], (2,0))
                     dtens = twoq_a.tensordot(f2, (3,0)).tensordot(f1.tensordot(twoq_b.conj(), (1,0)), ([0,3],[0,3]))
                 
-                mpd[l][n].elem += dtens.elem*l_rate
+                
+                new_mpd[l][n].elem += dtens.elem*l_rate*cexp(-1j*phase(contr))
+                new_mpd[l][n].normalize()
+        mpd=new_mpd
     
     return mpd, fid
 

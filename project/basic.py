@@ -1,6 +1,6 @@
-from qtealeaves.emulator.mps_simulator import MPS
+from qtealeaves.emulator import MPS
 from qtealeaves.tensors import QteaTensor as QteaT
-from qtealeaves.convergence_parameters.conv_params import TNConvergenceParameters as TNConvPar
+from qtealeaves.convergence_parameters import TNConvergenceParameters as TNConvPar
 import numpy as np
 from copy import deepcopy
 
