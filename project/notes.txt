@@ -70,4 +70,72 @@ G[n] are obtained as follows:
  - G[0][0,0,i,j] = A[0][j,k]
  - for 0<=h<=7, 0<=k<=7, except h=0 && k=0:     (find d**2-1 basis elements)
     - G[0][h,k, i,j] = any M_hk[i,j], given {M_hk} is an orthonormal basis of C**(d**2)
- 
+
+
+
+--- Optimization algorithm ---
+F is defined as: (taking G[3] as an example)
+
+  /¯¯¯¯¯¯¯¯¯¯¯¯¯\           /¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\                               
+  | /¯¯¯¯¯¯¯\   |           |   /¯¯¯¯¯¯¯¯¯¯¯\ |
+  | | /¯\   |   |   0   1   |   |   /¯¯¯¯¯\ | |
+  | | | |   |   |   |   |   |   |   |     | | |    
+  | | | |   |   |   |   |   |   |   |     | | |    
+  | | | |   |   G[2]G   |   |   |   |     | | |    
+  | | | |   |   |   |   |   |   |   |     | | |    
+  | | | |   G[1]G   |   |   |   |   |     | | |    
+  | | | |   |   |   |   |   |   |   |     | | |    
+  | | | G[0]G   |   |   |   |   |   |     | | |    
+  | | | |   |   |   |   |   |   |   |     | | |    
+  | | | d   d   d   d   d   d   d   d     | | |    
+  | | | |   |   |   |   |   |   |   |     | | |    
+  | | | O   O   O   O   O   O   O   O     | | |   
+  | | |                                   | | |
+  | | |                                   | | |  
+  | | |                                   | | |
+  | | | A-x-A-x-A-x-A-x-A-x-A-x-A-x-A     | | |    
+  | | | |   |   |   |   |   |   |   |     | | |    
+  | | | d   d   d   d   d   d   d   d     | | |    
+  | | | |   |   |   |   |   |   |   |     | | |    
+  | | | |   |   |   |   |   |   |   G[7]  | | |        
+  | | | |   |   |   |   |   |   |   |     | | |    
+  | | | |   |   |   |   |   |   G[6]G     | | |    
+  | | | |   |   |   |   |   |   |   |     | | |    
+  | | | |   |   |   |   |   G[5]G   |     | | |    
+  | | | |   |   |   |   |   |   |   |     | | |   
+  | | | |   |   |   |   G[4]G   |   |     | | |   
+  | | | |   |   |   |   |   |   |   |     | | |    
+  | | | |   |   |   |   |   |   |   |     | | |    
+  | | \_/   |   |   2   3   |   |   \_____/ | |   
+  | \_______/   |           |   \___________/ |
+  \_____________/           \_________________/
+  
+Which evaluates to:
+
+A-x-A-x-A-x-A-x-A-x-A-x-A-x-A
+|   |   |   |   |   |   |   |
+d   d   d   d   d   d   d   d
+|   |   |   |   |   |   |   |
+|   |   |   |   |   |   |   G[7]
+|   |   |   |   |   |   |   |
+|   |   |   |   |   |   G[6]G
+|   |   |   |   |   |   |   |     
+|   |   |   |   |   G[5]G   |
+|   |   |   |   |   |   |   |
+|   |   |   |   G[4]G   |   | 
+|   |   |   |   |   |   |   |
+|   |   |   2   3   |   |   |                = a 4-tensor given by the partial contraction of the two 
+|   |   |           |   |   |                   MPS, each multiplied by a part of the total MPD
+|   |   |   0   1   |   |   |                    (it's basically the derivative of the tensor net
+|   |   |   |   |   |   |   |                     wrt the tensor {G[3] in this example})
+|   |   G[2]G   |   |   |   |               !! legs must be swapped to be equivalent to the above !!
+|   |   |   |   |   |   |   |                   (usual order is:    0   1   )
+|   G[1]G   |   |   |   |   |                                       GGGGG
+|   |   |   |   |   |   |   |                                       2   3
+G[0]G   |   |   |   |   |   |
+|   |   |   |   |   |   |   |
+d   d   d   d   d   d   d   d
+|   |   |   |   |   |   |   |
+O   O   O   O   O   O   O   O
+
+In practice in the code the two MPD halves are each "completed" by adding identities until each is a valid MPD with 8 operators.
