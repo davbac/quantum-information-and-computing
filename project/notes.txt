@@ -138,4 +138,5 @@ d   d   d   d   d   d   d   d
 |   |   |   |   |   |   |   |
 O   O   O   O   O   O   O   O
 
-In practice in the code the two MPD halves are each "completed" by adding identities until each is a valid MPD with 8 operators.
+In practice in the code the two MPD halves are each "completed" by adding identities until each is a valid MPD with 8 operators. 
+With a MPD with more layers, each layer is optimized separately and the other layers are contracted into the MPS on either side.
