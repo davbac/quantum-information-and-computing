@@ -71,7 +71,8 @@ def mpd_from_mps(mps):
     
     return my_mpd
 
-def rev_apply_mpd(mpd, mps=None, chi=2, d=2):
+    
+def apply_mpd(mpd, mps=None, chi=2, d=2, rev=False, adj=False):
     if mps is None:
         N = len(mpd[0])
         mps = MPS(N, TNConvPar(max_bond_dimension=chi), initialize="vacuum", local_dim=d)
@@ -80,29 +81,30 @@ def rev_apply_mpd(mpd, mps=None, chi=2, d=2):
         N = len(mps)
     
     mps.normalize()
-    for i in range(len(mpd)):
-        mps.apply_one_site_operator(mpd[i][N-1],N-1)
-        for n in reversed(range(N-1)):
-            mps.apply_two_site_operator(mpd[i][n],n)
-
-    mps.normalize()
-    mps.iso_towards(0)
-    return mps
-    
-def apply_mpd(mpd, mps=None, chi=2, d=2):
-    if mps is None:
-        N = len(mpd[0])
-        mps = MPS(N, TNConvPar(max_bond_dimension=chi), initialize="vacuum", local_dim=d)
+    if not rev:
+        for i in reversed(range(len(mpd))):
+            for n in range(N-1):
+                if not adj:
+                    mps.apply_two_site_operator(mpd[i][n].transpose((2,3,0,1)).conj(),n) 
+                else:
+                    mps.apply_two_site_operator(mpd[i][n],n) 
+                
+            if not adj:
+                mps.apply_one_site_operator(mpd[i][N-1].transpose((1,0)).conj(),N-1)
+            else:
+                mps.apply_one_site_operator(mpd[i][N-1],N-1)
     else:
-        mps = deepcopy(mps)
-        N = len(mps)
-    
-    mps.normalize()
-    for i in reversed(range(len(mpd))):
-        for n in range(N-1):
-            mps.apply_two_site_operator(mpd[i][n].transpose((2,3,0,1)).conj(),n) 
-    
-        mps.apply_one_site_operator(mpd[i][N-1].transpose((1,0)).conj(),N-1)
+        for i in range(len(mpd)):
+            if not adj:
+                mps.apply_one_site_operator(mpd[i][N-1],N-1)
+            else:
+                mps.apply_one_site_operator(mpd[i][N-1].transpose((1,0)).conj(),N-1)
+            for n in reversed(range(N-1)):
+                if not adj:
+                    mps.apply_two_site_operator(mpd[i][n],n)
+                else:
+                    mps.apply_two_site_operator(mpd[i][n].transpose((2,3,0,1)).conj(),n)
+        
     mps.normalize()
     mps.iso_towards(0)
     return mps
@@ -122,5 +124,5 @@ if __name__ == "__main__":
     control_mps.normalize()
     
     print(np.abs(my_mps.contract(apply_mpd(my_mpd, control_mps))))
-    print(np.abs(control_mps.contract(rev_apply_mpd(my_mpd, my_mps))))
+    print(np.abs(control_mps.contract(apply_mpd(my_mpd, my_mps, rev=True))))
     
