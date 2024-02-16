@@ -6,7 +6,7 @@ from qtealeaves.tensors import QteaTensor as QteaT
 def full_analytic_mpd(mps, D):
     my_mpd = []
     for i in range(D):
-        temp_mps = rev_apply_mpd(my_mpd,mps)
+        temp_mps = apply_mpd(my_mpd,mps, rev=True)
         my_mpd.append(mpd_from_mps(temp_mps))
     
     return my_mpd
@@ -39,8 +39,8 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.005, tol=0.05, maxiter=1000):
         
         new_mpd = deepcopy(mpd)
         for l in layers:
-            mps_a = apply_mpd(mpd[:l],control_mps)
-            mps_b = rev_apply_mpd(mpd[l+1:], mps)
+            mps_a = apply_mpd(mpd[:l],control_mps, adj=True) #try adj
+            mps_b = apply_mpd(mpd[l+1:], mps, rev=True)
             for n in range(N):
                 mpd_a = [II for _ in range(n+1)]
                 mpd_a.extend(mpd[l][n+1:])
@@ -51,27 +51,27 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.005, tol=0.05, maxiter=1000):
                 mpd_b.extend([II for _ in range(N-n-1)])
                 mpd_b.append(I)
                 
-                mps_a_n = apply_mpd([mpd_a], mps_a)
-                mps_b_n = rev_apply_mpd([mpd_b], mps_b)
+                mps_a_n = apply_mpd([mpd_a], mps_a, adj=True) #try adj
+                mps_b_n = apply_mpd([mpd_b], mps_b, rev=True)
                 
                 if n==N-1: # two-leg tensor case
                     c = mps_a_n.contract(mps_b_n, (0,N-1)).remove_dummy_link(0)
                     f = mps_a_n[N-1].remove_dummy_link(2).tensordot(c, (0,0)).tensordot(mps_b_n[N-1].conj().remove_dummy_link(2), (1,0))
-                    f = f.transpose((1,0))
+                    #f = f.transpose((1,0))
                     
                 elif n==N-2: # right edge case
                     c = mps_a_n.contract(mps_b_n, (0,N-2)).remove_dummy_link(0) 
                     twoq_a = mps_a_n[N-2].tensordot(mps_a_n[N-1].remove_dummy_link(2), (2,0))
                     twoq_b = mps_b_n[N-2].tensordot(mps_b_n[N-1].remove_dummy_link(2), (2,0))
                     f = twoq_a.tensordot(c.tensordot(twoq_b.conj(), (1,0)), (0,0))
-                    f = f.transpose((2,3,0,1))
+                    #f = f.transpose((2,3,0,1))
                     
                 elif n==0: # left edge case
                     c = mps_a_n.contract(mps_b_n, (N-1,1)).remove_dummy_link(2) 
                     twoq_a = mps_a_n[0].remove_dummy_link(0).tensordot(mps_a_n[1], (1,0))
                     twoq_b = mps_b_n[0].remove_dummy_link(0).tensordot(mps_b_n[1], (1,0))
                     f = twoq_a.tensordot(c, (2,0)).tensordot(twoq_b.conj(), (2,2))
-                    f = f.transpose((2,3,0,1))
+                    #f = f.transpose((2,3,0,1))
                 
                 else: # in between
                     c1 = mps_a_n.contract(mps_b_n, (0,n)).remove_dummy_link(0) 
@@ -79,7 +79,7 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.005, tol=0.05, maxiter=1000):
                     twoq_a = mps_a_n[n].tensordot(mps_a_n[n+1], (2,0))
                     twoq_b = mps_b_n[n].tensordot(mps_b_n[n+1], (2,0))
                     f = twoq_a.tensordot(c2, (3,0)).tensordot(c1.tensordot(twoq_b.conj(), (1,0)), ([0,3],[0,3]))
-                    f = f.transpose((2,3,0,1))
+                    #f = f.transpose((2,3,0,1))
                 
                 """ # gradient ascent kinda thing, not working
                 new_mpd[l][n].elem += f.elem*l_rate*contr.conjugate()
@@ -145,13 +145,13 @@ if __name__=="__main__":
     control_mps.normalize()
     
     print(-np.log(np.abs(my_mps.contract(apply_mpd(my_mpd, control_mps))))/N)
-    print(-np.log(np.abs(control_mps.contract(rev_apply_mpd(my_mpd, my_mps))))/N)
+    print(-np.log(np.abs(control_mps.contract(apply_mpd(my_mpd, my_mps, rev=True))))/N)
     
     my_mpd, fid = optimize_mpd(my_mpd, my_mps, layers=(0,1), maxiter=100, l_rate=0.06)
     
     print()
     print(-np.log(np.abs(my_mps.contract(apply_mpd(my_mpd, control_mps))))/N)
-    print(-np.log(np.abs(control_mps.contract(rev_apply_mpd(my_mpd, my_mps))))/N)
+    print(-np.log(np.abs(control_mps.contract(apply_mpd(my_mpd, my_mps, rev=True))))/N)
     
     
     import matplotlib.pyplot as plt
