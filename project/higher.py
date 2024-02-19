@@ -11,7 +11,7 @@ def full_analytic_mpd(mps, D):
     
     return my_mpd
 
-def optimize_mpd(mpd, mps, layers=None, l_rate=0.005, tol=0.05, maxiter=1000): 
+def optimize_mpd(mpd, mps, layers=None, l_rate=0.001, tol=0.05, maxiter=1000): 
     mpd = deepcopy(mpd)
     if layers is None:
         # by default only optimize the last layer of the MPD 
@@ -39,7 +39,7 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.005, tol=0.05, maxiter=1000):
         
         new_mpd = deepcopy(mpd)
         for l in layers:
-            mps_a = apply_mpd(mpd[:l],control_mps, adj=True) #try adj
+            mps_a = apply_mpd(mpd[:l],control_mps) #, adj=True) #try adj
             mps_b = apply_mpd(mpd[l+1:], mps, rev=True)
             for n in range(N):
                 mpd_a = [II for _ in range(n+1)]
@@ -51,7 +51,7 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.005, tol=0.05, maxiter=1000):
                 mpd_b.extend([II for _ in range(N-n-1)])
                 mpd_b.append(I)
                 
-                mps_a_n = apply_mpd([mpd_a], mps_a, adj=True) #try adj
+                mps_a_n = apply_mpd([mpd_a], mps_a)#, adj=True) #try adj
                 mps_b_n = apply_mpd([mpd_b], mps_b, rev=True)
                 
                 if n==N-1: # two-leg tensor case
@@ -81,16 +81,30 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.005, tol=0.05, maxiter=1000):
                     f = twoq_a.tensordot(c2, (3,0)).tensordot(c1.tensordot(twoq_b.conj(), (1,0)), ([0,3],[0,3]))
                     #f = f.transpose((2,3,0,1))
                 
-                """ # gradient ascent kinda thing, not working
-                new_mpd[l][n].elem += f.elem*l_rate*contr.conjugate()
+                # gradient ascent kinda thing, not working
+                new_mpd[l][n].elem += f.elem.conj()*l_rate*contr.conjugate()
                 
                 #new_mpd[l][n].normalize() #nope, not normalized, it needs to be _unitary_
                 if n==N-1:
+                    a=new_mpd[l][n].elem.copy()
+                else:
+                    a=new_mpd[l][n].elem.reshape((d**2,d**2)).copy()
+                
+                for i in range(len(a)):
+                    a[i]/=np.vdot(a[i],a[i])**0.5
+                
+                if n==N-1:
+                    new_mpd[l][n].elem=a
+                else:
+                    new_mpd[l][n].elem=a.reshape((d,d,d,d))
+                """
+                if n == N-1:
                     t_left, t_right, _, _ = new_mpd[l][n].split_svd([0],[1], conv_params=TNConvPar(), no_truncation=True)
-                    new_mpd[l][n] = t_left.tensordot(t_right, (1,0))
+                    new_mpd[l][n] = t_left.tensordot(t_right, 1)
                 else:
                     t_left, t_right, _, _ = new_mpd[l][n].split_svd([0,1],[2,3], conv_params=TNConvPar(), no_truncation=True)
-                    new_mpd[l][n] = t_left.tensordot(t_right, (2,0))
+                    new_mpd[l][n] = t_left.tensordot(t_right, 1)
+                """
                 """
                 if n!=N-1:
                     # reshape tensor in matrix form in the 4-leg cases
@@ -123,7 +137,7 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.005, tol=0.05, maxiter=1000):
                     uprime = uprime.reshape((d,d,d,d))
                 
                 new_mpd[l][n] = uprime
-                
+                """
                     
         mpd=new_mpd
     
@@ -147,7 +161,7 @@ if __name__=="__main__":
     print(-np.log(np.abs(my_mps.contract(apply_mpd(my_mpd, control_mps))))/N)
     print(-np.log(np.abs(control_mps.contract(apply_mpd(my_mpd, my_mps, rev=True))))/N)
     
-    my_mpd, fid = optimize_mpd(my_mpd, my_mps, layers=(0,1), maxiter=100, l_rate=0.06)
+    my_mpd, fid = optimize_mpd(my_mpd, my_mps, layers=(0,1))#, maxiter=100, l_rate=0.06)
     
     print()
     print(-np.log(np.abs(my_mps.contract(apply_mpd(my_mpd, control_mps))))/N)
