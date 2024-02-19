@@ -49,7 +49,7 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.001, tol=0.05, maxiter=1000):
                 
                 mpd_b = mpd[l][:n]
                 mpd_b.extend([II for _ in range(N-n-1)])
-                mpd_b.append(I)
+                mpd_b.append(I) 
                 
                 mps_a_n = apply_mpd([mpd_a], mps_a)#, adj=True) #try adj
                 mps_b_n = apply_mpd([mpd_b], mps_b, rev=True)
