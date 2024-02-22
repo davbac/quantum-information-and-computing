@@ -43,19 +43,39 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.001, tol=0.05, maxiter=1000):
             
             mpd_f = mpd[l+1:] # "forward" part, applied to control_mps
             mpd_r = mpd[:l]   # "reverse" part, applied to the given mps
-            
-            mps_f = apply_mpd(mpd_f, control_mps)
-            mps_r = apply_mpd(mpd_r, mps, rev=True)
+            """
+            print(l)
+            print("--- MPD ---")
+            print_mpd(mpd)
+            print("--- reverse part ---")
+            print_mpd(mpd_r)
+            print("--- forward part ---")
+            print_mpd(mpd_f)
+            """
+            #mps_f = apply_mpd(mpd_f, control_mps)
+            #mps_r = apply_mpd(mpd_r, mps, rev=True)
             
             for n in range(N):
-                mpd_f_n = [[II for _ in range(n+1)] + mpd[l][n+1:]]
+                mpd_r_n = [[II for _ in range(n+1)] + mpd[l][n+1:]]
                 if n==N-1:
-                    mpd_f_n[0][-1]=I 
+                    mpd_r_n[0][-1]=I 
                 
-                mpd_r_n = [mpd[l][:n] + [II for _ in range(N-n-1)] + [I]]
+                mpd_f_n = [mpd[l][:n] + [II for _ in range(N-n-1)] + [I]]
                 
-                mps_f_n = apply_mpd(mpd_f_n, mps_f)
-                mps_r_n = apply_mpd(mpd_r_n, mps_r, rev=True)
+                """if n==3:
+                    print("--- forward n part ---")
+                    print_mpd(mpd_f_n)
+                    print("--- reverse n part ---")
+                    print_mpd(mpd_r_n)
+                    print("--- tensor to be optimized ---")
+                    print_mpd([[mpd[l][n]]])
+                    return
+                """
+                #mps_f_n = apply_mpd(mpd_f_n, mps_f, adj=True, rev=True)
+                #mps_r_n = apply_mpd(mpd_r_n, mps_r, rev=True)
+                
+                mps_f_n = apply_mpd(mpd_f_n+mpd_f, control_mps, chi=10)
+                mps_r_n = apply_mpd(mpd_r+mpd_r_n, mps, rev=True, chi=10)
                 
                 mps_f_n.iso_towards(n) # not needed
                 mps_r_n.iso_towards(n) # (probably)
@@ -82,14 +102,14 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.001, tol=0.05, maxiter=1000):
                 
                 
                 if n!=N-1:
-                    #f = f.transpose((1,0,3,2))
-                    print(f.tensordot(mpd[l][n], ([0,1,2,3],[0,1,2,3])).elem, contr) #should be equal??
+                    f = f.transpose((1,0,3,2))
+                    print(f.tensordot(mpd[l][n], ([2,3,0,1],[0,1,2,3])).elem, contr) #should be equal??
                     f = f.reshape((d**2, d**2))
                     u = mpd[l][n].reshape((d**2, d**2))
                 else:
                     u = mpd[l][n]
                 
-                #f = f.transpose((1,0))
+                f = f.transpose((1,0))
                 #f = f.conj()
                 
                 f_l, f_r, _, _ = f.split_svd([0],[1], conv_params=TNConvPar(), no_truncation=True)
@@ -115,20 +135,19 @@ if __name__=="__main__":
     chi=8
     N=8
     D=2
-    my_mps = MPS(N, TNConvPar(max_bond_dimension=chi), initialize="random", local_dim=d)
+    from qtealeaves.tensors import TensorBackend
+    my_mps = MPS(N, TNConvPar(max_bond_dimension=chi), initialize="random", local_dim=d, tensor_backend=TensorBackend(dtype="D"))
     my_mps.normalize()
     
     my_mpd = full_analytic_mpd(my_mps, D)
     
-    #my_mpd = optimize_mpd(my_mpd, my_mps, maxiter=100)
-    
-    control_mps = MPS(N, TNConvPar(max_bond_dimension=chi), initialize="vacuum", local_dim=d)
+    control_mps = MPS(N, TNConvPar(max_bond_dimension=chi), initialize="vacuum", local_dim=d, tensor_backend=TensorBackend(dtype="D"))
     control_mps.normalize()
     
     print(-np.log(np.abs(my_mps.contract(apply_mpd(my_mpd, control_mps))))/N)
     print(-np.log(np.abs(control_mps.contract(apply_mpd(my_mpd, my_mps, rev=True))))/N)
     
-    my_mpd, fid = optimize_mpd(my_mpd, my_mps, layers=(0,1), maxiter=50, l_rate=0.6)
+    my_mpd, fid = optimize_mpd(my_mpd, my_mps, layers=(0,1), maxiter=50, l_rate=0.6, tol=1e-5)
     
     print()
     print(-np.log(np.abs(my_mps.contract(apply_mpd(my_mpd, control_mps))))/N)

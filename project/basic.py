@@ -72,12 +72,19 @@ def mpd_from_mps(mps):
     return my_mpd
 
     
-def apply_mpd(mpd, mps=None, chi=2, d=2, rev=False, adj=False):
+def apply_mpd(mpd, mps=None, chi=None, d=None, rev=False, adj=False):
+    if d is None:
+        d=2
+    
     if mps is None:
         N = len(mpd[0])
+        if chi is None:
+            chi=d
         mps = MPS(N, TNConvPar(max_bond_dimension=chi), initialize="vacuum", local_dim=d)
     else:
         mps = deepcopy(mps)
+        if chi is not None:
+            mps._convergence_parameters.sim_params["max_bond_dimension"]=chi
         N = len(mps)
     
     mps.normalize()
