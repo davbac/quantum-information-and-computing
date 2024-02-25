@@ -43,15 +43,7 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.001, tol=0.05, maxiter=1000):
             
             mpd_f = mpd[l+1:] # "forward" part, applied to control_mps
             mpd_r = mpd[:l]   # "reverse" part, applied to the given mps
-            """
-            print(l)
-            print("--- MPD ---")
-            print_mpd(mpd)
-            print("--- reverse part ---")
-            print_mpd(mpd_r)
-            print("--- forward part ---")
-            print_mpd(mpd_f)
-            """
+            
             #mps_f = apply_mpd(mpd_f, control_mps)
             #mps_r = apply_mpd(mpd_r, mps, rev=True)
             
@@ -62,15 +54,14 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.001, tol=0.05, maxiter=1000):
                 
                 mpd_f_n = [mpd[l][:n] + [II for _ in range(N-n-1)] + [I]]
                 
-                """if n==3:
-                    print("--- forward n part ---")
-                    print_mpd(mpd_f_n)
-                    print("--- reverse n part ---")
-                    print_mpd(mpd_r_n)
-                    print("--- tensor to be optimized ---")
-                    print_mpd([[mpd[l][n]]])
-                    return
-                """
+                
+                mpd_mid = [II for _ in range(n)] + [mpd[l][n]] + [II for _ in range(N-n-1)]
+                if n!=N-1:
+                    mpd_mid[-1]=I
+                
+                if not np.allclose(abs(mps.contract(apply_mpd(mpd_r+mpd_r_n+[mpd_mid]+mpd_f_n+mpd_f, control_mps))), abs(contr)):
+                    print("Error in building mpd parts:",abs(mps.contract(apply_mpd(mpd_r+mpd_r_n+[mpd_mid]+mpd_f_n+mpd_f, control_mps))), abs(contr))
+                
                 #mps_f_n = apply_mpd(mpd_f_n, mps_f, adj=True, rev=True)
                 #mps_r_n = apply_mpd(mpd_r_n, mps_r, rev=True)
                 
@@ -97,29 +88,40 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.001, tol=0.05, maxiter=1000):
                     q_f = mps_f_n[n]
                     q_r = mps_r_n[n]
                 
+                #c1 = c1.transpose((1,0))
+                #c2 = c2.transpose((1,0))
+                
                 f = c1.tensordot(q_r, (0,0)).tensordot(c2, (-1,0)).tensordot(q_f.conj(), ([0,-1],[0,-1]))
-                #f = c1.transpose((1,0)).tensordot(q_f.conj(), (0,0)).tensordot(c2.transpose((1,0)), (-1,0)).tensordot(q_r,([0,-1],[0,-1]))
+                
                 
                 
                 if n!=N-1:
-                    f = f.transpose((1,0,3,2))
-                    print(f.tensordot(mpd[l][n], ([2,3,0,1],[0,1,2,3])).elem, contr) #should be equal??
                     f = f.reshape((d**2, d**2))
                     u = mpd[l][n].reshape((d**2, d**2))
                 else:
                     u = mpd[l][n]
                 
                 f = f.transpose((1,0))
+                
+                if not np.allclose(abs(f.tensordot(u, ([0,1],[0,1])).elem),abs(contr)):
+                    print("Error in computing f:", abs(f.tensordot(u, ([0,1],[0,1])).elem),abs(contr))
+                
                 #f = f.conj()
                 
                 f_l, f_r, _, _ = f.split_svd([0],[1], conv_params=TNConvPar(), no_truncation=True)
                 f = f_l @ f_r 
                 
+                
                 m = u.transpose((1,0)).conj() @ f
                 m_l, m_r, vals, _ = m.split_svd([0],[1], conv_params=TNConvPar(), no_truncation=True)
                 vals = QteaT.from_elem_array(np.diag(vals**l_rate))
-                m = m_l @ vals @ m_r 
+                m = m_l @ vals @ m_r
                 uprime = u @ m
+                
+                ### ATTENTION: vals are all one, exponentiation changes nothing ????
+                # aka uprime is equal to unew [unew kept name "f" in code]
+                
+                #print(u.elem, uprime.elem, f.elem, "\n", sep="\n")
                 
                 if n!=N-1:
                     uprime = uprime.reshape((d,d,d,d))
@@ -133,7 +135,7 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.001, tol=0.05, maxiter=1000):
 if __name__=="__main__":
     d=2
     chi=8
-    N=8
+    N=4
     D=2
     from qtealeaves.tensors import TensorBackend
     my_mps = MPS(N, TNConvPar(max_bond_dimension=chi), initialize="random", local_dim=d, tensor_backend=TensorBackend(dtype="D"))
@@ -147,7 +149,7 @@ if __name__=="__main__":
     print(-np.log(np.abs(my_mps.contract(apply_mpd(my_mpd, control_mps))))/N)
     print(-np.log(np.abs(control_mps.contract(apply_mpd(my_mpd, my_mps, rev=True))))/N)
     
-    my_mpd, fid = optimize_mpd(my_mpd, my_mps, layers=(0,1), maxiter=50, l_rate=0.6, tol=1e-5)
+    my_mpd, fid = optimize_mpd(my_mpd, my_mps, layers=(0,1), maxiter=50, l_rate=0.06, tol=1e-10)
     
     print()
     print(-np.log(np.abs(my_mps.contract(apply_mpd(my_mpd, control_mps))))/N)

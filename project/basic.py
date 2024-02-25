@@ -16,6 +16,7 @@ def print_mpd(mpd):
 def mpd_from_mps(mps):
     my_mps = deepcopy(mps)
     N = my_mps.num_sites
+    dtype = my_mps[0].dtype
     if np.all(np.array(my_mps.local_dim) == my_mps.local_dim[0]):
         d = my_mps.local_dim[0]
     else:
@@ -31,13 +32,13 @@ def mpd_from_mps(mps):
     my_mpd = []
     
     # start from G[0]
-    G = QteaT((d,d,d,d)) # initialized to zero
+    G = QteaT((d,d,d,d), dtype=dtype) # initialized to zero
     G.elem[0,0,:,:]=my_mps[0].copy().elem # set the first part equal to the MPS  
     for i in range(d):
         for j in range(d):
             if j==0 and i==0: # don't reset the first part
                 continue
-            M = QteaT((d,d), ctrl="R") #random init
+            M = QteaT((d,d), ctrl="R", dtype=dtype) #random init
             
             # take random matrix, keep only parts perpendicular to the ones that are already set, renormalize
             ##the parts that aren't set yet will just give a null contribution to this process
@@ -51,12 +52,12 @@ def mpd_from_mps(mps):
     
     # same for G[1:N-2]
     for n in range(1,N-1):
-        G = QteaT((d,d,d,d))
+        G = QteaT((d,d,d,d), dtype=dtype)
         G.elem[0,:,:,:]=my_mps[n].copy().elem
         
         for i in range(1,d):
             for j in range(d):
-                M = QteaT((d,d), ctrl="R")
+                M = QteaT((d,d), ctrl="R", dtype=dtype)
                 for k in range(d):
                     for h in range(d):
                         M.elem -= G.elem[k,h,:,:]*np.vdot(G.elem[k,h,:,:], M.elem)
