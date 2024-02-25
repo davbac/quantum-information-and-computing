@@ -2,6 +2,7 @@ from qtealeaves.emulator import MPS
 from qtealeaves.convergence_parameters import TNConvergenceParameters as TNConvPar
 from basic import *
 from qtealeaves.tensors import QteaTensor as QteaT
+from scipy import linalg
 
 def full_analytic_mpd(mps, D):
     my_mpd = []
@@ -106,20 +107,27 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.001, tol=0.05, maxiter=1000):
                 if not np.allclose(abs(f.tensordot(u, ([0,1],[0,1])).elem),abs(contr)):
                     print("Error in computing f:", abs(f.tensordot(u, ([0,1],[0,1])).elem),abs(contr))
                 
-                #f = f.conj()
+                f = f.conj()
                 
                 f_l, f_r, _, _ = f.split_svd([0],[1], conv_params=TNConvPar(), no_truncation=True)
                 f = f_l @ f_r 
                 
                 
                 m = u.transpose((1,0)).conj() @ f
+                """
                 m_l, m_r, vals, _ = m.split_svd([0],[1], conv_params=TNConvPar(), no_truncation=True)
+                
                 vals = QteaT.from_elem_array(np.diag(vals**l_rate))
-                m = m_l @ vals @ m_r
+                m = m_l @ vals @ m_r"""
+                m.elem = linalg.expm(l_rate*linalg.logm(m.elem))
                 uprime = u @ m
                 
-                ### ATTENTION: vals are all one, exponentiation changes nothing ????
-                # aka uprime is equal to unew [unew kept name "f" in code]
+                ### ATTENTION: vals all have |lambda|=1 , exponentiation changes only phase
+                # aka uprime is equal to unew, at least for the real case [unew kept name "f" in code]
+                
+                ### vals seem to be only +1 even for complex case
+                
+                ## ok, expm of logm works
                 
                 #print(u.elem, uprime.elem, f.elem, "\n", sep="\n")
                 
@@ -138,18 +146,18 @@ if __name__=="__main__":
     N=4
     D=2
     from qtealeaves.tensors import TensorBackend
-    my_mps = MPS(N, TNConvPar(max_bond_dimension=chi), initialize="random", local_dim=d, tensor_backend=TensorBackend(dtype="D"))
+    my_mps = MPS(N, TNConvPar(max_bond_dimension=chi), initialize="random", local_dim=d)#, tensor_backend=TensorBackend(dtype="D"))
     my_mps.normalize()
     
     my_mpd = full_analytic_mpd(my_mps, D)
     
-    control_mps = MPS(N, TNConvPar(max_bond_dimension=chi), initialize="vacuum", local_dim=d, tensor_backend=TensorBackend(dtype="D"))
+    control_mps = MPS(N, TNConvPar(max_bond_dimension=chi), initialize="vacuum", local_dim=d)#, tensor_backend=TensorBackend(dtype="D"))
     control_mps.normalize()
     
     print(-np.log(np.abs(my_mps.contract(apply_mpd(my_mpd, control_mps))))/N)
     print(-np.log(np.abs(control_mps.contract(apply_mpd(my_mpd, my_mps, rev=True))))/N)
     
-    my_mpd, fid = optimize_mpd(my_mpd, my_mps, layers=(0,1), maxiter=50, l_rate=0.06, tol=1e-10)
+    my_mpd, fid = optimize_mpd(my_mpd, my_mps, layers=(0,1), maxiter=50, l_rate=0.2, tol=1e-10)
     
     print()
     print(-np.log(np.abs(my_mps.contract(apply_mpd(my_mpd, control_mps))))/N)
