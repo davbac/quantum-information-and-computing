@@ -73,7 +73,7 @@ def mpd_from_mps(mps):
     return my_mpd
 
     
-def apply_mpd(mpd, mps=None, chi=None, d=None, rev=False, adj=False):
+def apply_mpd(mpd, mps=None, chi=None, d=None, rev=False):
     if d is None:
         d=2
     
@@ -92,27 +92,16 @@ def apply_mpd(mpd, mps=None, chi=None, d=None, rev=False, adj=False):
     if not rev:
         for i in reversed(range(len(mpd))):
             for n in range(N-1):
-                if not adj:
-                    mps.apply_two_site_operator(mpd[i][n].transpose((2,3,0,1)).conj(),n) 
-                else:
-                    mps.apply_two_site_operator(mpd[i][n],n) 
+                mps.apply_two_site_operator(mpd[i][n].transpose((2,3,0,1)).conj(),n) 
                 
-            if not adj:
-                mps.apply_one_site_operator(mpd[i][N-1].transpose((1,0)).conj(),N-1)
-            else:
-                mps.apply_one_site_operator(mpd[i][N-1],N-1)
+            mps.apply_one_site_operator(mpd[i][N-1].transpose((1,0)).conj(),N-1)
+    
     else:
         for i in range(len(mpd)):
-            if not adj:
-                mps.apply_one_site_operator(mpd[i][N-1],N-1)
-            else:
-                mps.apply_one_site_operator(mpd[i][N-1].transpose((1,0)).conj(),N-1)
+            mps.apply_one_site_operator(mpd[i][N-1],N-1)
             for n in reversed(range(N-1)):
-                if not adj:
-                    mps.apply_two_site_operator(mpd[i][n],n)
-                else:
-                    mps.apply_two_site_operator(mpd[i][n].transpose((2,3,0,1)).conj(),n)
-        
+                mps.apply_two_site_operator(mpd[i][n],n)
+    
     mps.normalize()
     mps.iso_towards(0)
     return mps
