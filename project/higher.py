@@ -130,10 +130,11 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.1, tol=1e-5, maxiter=1000, maxc
     return mpd, fid
 
 if __name__=="__main__":
-    d=2
-    chi=8
-    N=8
-    D=2
+    d=2 #local dimension
+    chi=8 #bond dimension
+    N=8 #number of sites
+    D=2 #MPD depth
+    
     from qtealeaves.tensors import TensorBackend
     my_mps = MPS(N, TNConvPar(max_bond_dimension=chi), initialize="random", local_dim=d)
     my_mps.normalize()
