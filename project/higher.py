@@ -119,7 +119,7 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.001, tol=0.05, maxiter=1000):
                 
                 vals = QteaT.from_elem_array(np.diag(vals**l_rate))
                 m = m_l @ vals @ m_r"""
-                m.elem = linalg.expm(l_rate*linalg.logm(m.elem))
+                m.elem = linalg.fractional_matrix_power(m.elem, l_rate)
                 uprime = u @ m
                 
                 ### ATTENTION: vals all have |lambda|=1 , exponentiation changes only phase
@@ -127,7 +127,7 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.001, tol=0.05, maxiter=1000):
                 
                 ### vals seem to be only +1 even for complex case
                 
-                ## ok, expm of logm works
+                ## using scipy linalg works
                 
                 #print(u.elem, uprime.elem, f.elem, "\n", sep="\n")
                 
