@@ -4,15 +4,7 @@ from basic import *
 from qtealeaves.tensors import QteaTensor as QteaT
 from scipy import linalg
 
-def full_analytic_mpd(mps, D):
-    my_mpd = []
-    for i in range(D):
-        temp_mps = apply_mpd(my_mpd,mps, rev=True)
-        my_mpd.append(mpd_from_mps(temp_mps))
-    
-    return my_mpd
-
-def optimize_mpd(mpd, mps, layers=None, l_rate=0.1, tol=1e-5, maxiter=1000, maxchi=None): 
+def optimize_mpd(mpd, mps, layers=None, l_rate=0.1, tol=1e-5, maxiter=200, maxchi=None): 
     # a few parameters
     N=mps.num_sites
     chi=mps._convergence_parameters.sim_params["max_bond_dimension"]
@@ -30,12 +22,10 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.1, tol=1e-5, maxiter=1000, maxc
     I = QteaT.from_elem_array(np.eye(d))
     II = QteaT.from_elem_array(np.eye(d**2).reshape((d,d,d,d)))
     
-    fid = []
     
     for it in range(maxiter): #start iterating
         #check convergence
         contr = control_mps.contract(apply_mpd(mpd, mps, rev=True))
-        fid.append(np.abs(contr))
         if np.abs(contr)>1-tol:
             break
         
@@ -70,6 +60,8 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.1, tol=1e-5, maxiter=1000, maxc
                 mps_f_n = apply_mpd(mpd_f_n+mpd_f, control_mps, chi=maxchi)
                 mps_r_n = apply_mpd(mpd_r+mpd_r_n, mps, rev=True, chi=maxchi)
                 
+                mps_f_n.normalize()
+                mps_r_n.normalize()
                 
                 if n>0:
                     c1 = mps_r_n.contract(mps_f_n, (0,n)).remove_dummy_link(0)
@@ -109,16 +101,14 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.1, tol=1e-5, maxiter=1000, maxc
                 f_l, f_r, _, _ = f.split_svd([0],[1], conv_params=TNConvPar(), no_truncation=True)
                 f = f_l @ f_r 
                 
-                
                 m = u.transpose((1,0)).conj() @ f
-                """ # elevate m to l_rate, so as to get a slower update
-                m_l, m_r, vals, _ = m.split_svd([0],[1], conv_params=TNConvPar(), no_truncation=True)
-                
-                vals = QteaT.from_elem_array(np.diag(vals**l_rate))
-                m = m_l @ vals @ m_r"""
                 
                 m.elem = linalg.fractional_matrix_power(m.elem, l_rate)
                 uprime = u @ m
+                
+                # double check, make sure it's unitary ;; tends to diverge slowly over time
+                u_l, u_r, _, _ = uprime.split_svd([0],[1], conv_params=TNConvPar(), no_truncation=True)
+                uprime = u_l @ u_r
                 
                 if n!=N-1:
                     uprime = uprime.reshape((d,d,d,d))
@@ -127,7 +117,85 @@ def optimize_mpd(mpd, mps, layers=None, l_rate=0.1, tol=1e-5, maxiter=1000, maxc
         
         mpd = new_mpd
                 
-    return mpd, fid
+    return mpd
+
+def dall(mps, D, **kwargs):
+    my_mpd = []
+    for _ in range(D):
+        temp_mps = apply_mpd(my_mpd,mps, rev=True)
+        my_mpd.append(mpd_from_mps(temp_mps))
+    
+    return my_mpd
+
+def iter_di_oi(mps, D, maxiter=200, tol=1e-5, **kwargs):
+    my_mpd = []
+    for i in range(D):
+        temp_mps = apply_mpd(my_mpd,mps, rev=True)
+        my_mpd.append(mpd_from_mps(temp_mps))
+        my_mpd=optimize_mpd(my_mpd, mps, (i,), maxiter=maxiter, tol=tol)
+    return my_mpd
+
+def iter_di_oall(mps, D, maxiter=200, tol=1e-5, **kwargs):
+    my_mpd = []
+    for _ in range(D):
+        temp_mps = apply_mpd(my_mpd,mps, rev=True)
+        my_mpd.append(mpd_from_mps(temp_mps))
+        my_mpd=optimize_mpd(my_mpd, mps, maxiter=maxiter, tol=tol)
+    return my_mpd
+
+def iter_ii_oall(mps, D, maxiter=200, tol=1e-5, **kwargs):
+    N=mps.num_sites
+    d=np.random.choice(mps.local_dim)
+    if not np.allclose(mps.local_dim,d):
+        raise Exception("This algorithm only works with the same physical dimension across loci")
+    
+    I = QteaT.from_elem_array(np.eye(d), dtype=np.complex128)
+    II = QteaT.from_elem_array(np.eye(d**2).reshape((d,d,d,d)), dtype=np.complex128)
+    my_mpd = []
+    layer = [II for i in range(N-1)] +[I]
+    for _ in range(D):
+        my_mpd.append(layer)
+        my_mpd=optimize_mpd(my_mpd, mps, maxiter=maxiter, tol=tol)
+    return my_mpd
+
+def oall(mps, D, maxiter=200, tol=1e-5, **kwargs):
+    N=mps.num_sites
+    d=np.random.choice(mps.local_dim)
+    if not np.allclose(mps.local_dim,d):
+        raise Exception("This algorithm only works with the same physical dimension across loci")
+    
+    my_mpd=[[QteaT((d,d,d,d), ctrl="R") for _ in range(N-1)]+[QteaT((d,d), ctrl="R")] for _ in range(D)]
+    my_mpd=optimize_mpd(my_mpd, mps, maxiter=maxiter, tol=tol)
+    return my_mpd
+    
+def dall_oall(mps, D, maxiter=200, tol=1e-5, **kwargs):
+    my_mpd = dall(mps, D)
+    my_mpd = optimize_mpd(my_mpd, mps, maxiter=maxiter, tol=tol)
+    return my_mpd
+
+def iter_di_oi_oall(mps, D, maxiter_i=50, maxiter_a=200, tol=1e-5, **kwargs):
+    my_mpd = iter_di_oi(mps, D, maxiter_i)
+    my_mpd = optimize_mpd(my_mpd, mps, maxiter=maxiter_a, tol=tol)
+    return my_mpd
+    
+def get_mpd(mps, D, ctrl="A", **kwargs):
+    """function to switch more easily between different optimization modes"""
+    match ctrl.lower():
+        case "a" | "analytic":
+            return dall(mps, D, **kwargs)
+        case "i" | "identities":
+            return iter_ii_oall(mps, D, **kwargs)
+        case "s" | "single":
+            return iter_di_oi(mps, D, **kwargs)
+        case "b" | "batch":
+            return iter_di_oall(mps, D, **kwargs)
+        case "o" | "optimize":
+            return oall(mps, D, **kwargs)
+        case "f" | "final":
+            return dall_oall(mps, D, **kwargs)
+        case "c" | "continuous":
+            return iter_di_oi_oall(mps, D, **kwargs)
+        
 
 if __name__=="__main__":
     d=2 #local dimension
@@ -135,11 +203,11 @@ if __name__=="__main__":
     N=8 #number of sites
     D=2 #MPD depth
     
-    from qtealeaves.tensors import TensorBackend
+    #from qtealeaves.tensors import TensorBackend
     my_mps = MPS(N, TNConvPar(max_bond_dimension=chi), initialize="random", local_dim=d)
     my_mps.normalize()
     
-    my_mpd = full_analytic_mpd(my_mps, D)
+    my_mpd = dall(my_mps, D)
     
     control_mps = MPS(N, TNConvPar(max_bond_dimension=chi), initialize="vacuum", local_dim=d)
     control_mps.normalize()
@@ -147,15 +215,11 @@ if __name__=="__main__":
     print(-np.log(np.abs(my_mps.contract(apply_mpd(my_mpd, control_mps))))/N)
     print(-np.log(np.abs(control_mps.contract(apply_mpd(my_mpd, my_mps, rev=True))))/N)
     
-    my_mpd, fid = optimize_mpd(my_mpd, my_mps, maxchi=10, maxiter=200)
+    my_mpd = optimize_mpd(my_mpd, my_mps, maxchi=10, maxiter=50)
     
     print()
     print(-np.log(np.abs(my_mps.contract(apply_mpd(my_mpd, control_mps))))/N)
     print(-np.log(np.abs(control_mps.contract(apply_mpd(my_mpd, my_mps, rev=True))))/N)
     
     
-    import matplotlib.pyplot as plt
-    fig, ax = plt.subplots(ncols=2)
-    ax[0].plot(fid)
-    ax[1].plot(-np.log(fid)/N)
-    plt.show()
+    

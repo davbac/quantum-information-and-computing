@@ -22,7 +22,7 @@ def mpd_from_mps(mps):
     else:
         raise Exception("Needs an MPS with the same local dimension on all sites. Tested only on d=2")
     
-    my_mps._convergence_parameters.sim_params["max_bond_dimension"]=2
+    my_mps._convergence_parameters.sim_params["max_bond_dimension"]=d
     # we need the isometry at the first site
     ## move it all the way to make sure the mps is all reduced to bond dimension 2
     my_mps.iso_towards(len(my_mps)-1)
@@ -75,7 +75,8 @@ def mpd_from_mps(mps):
     
 def apply_mpd(mpd, mps=None, chi=None, d=None, rev=False):
     if d is None:
-        d=2
+        #d=2
+        d=mpd[0][0].links[0]
     
     if mps is None:
         N = len(mpd[0])
